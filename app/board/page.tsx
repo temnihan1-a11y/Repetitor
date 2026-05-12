@@ -159,7 +159,11 @@ export default function BoardPage() {
         onMouseMove={draw}
         onMouseUp={stopDrawing}
         onMouseLeave={stopDrawing}
-        className="flex-1 cursor-crosshair bg-white"
+        onTouchStart={startDrawing}
+        onTouchMove={draw}
+        onTouchEnd={stopDrawing}
+        className="flex-1 cursor-crosshair bg-white touch-none"
+        style={{ touchAction: 'none' }}
       />
     </main>
   );
