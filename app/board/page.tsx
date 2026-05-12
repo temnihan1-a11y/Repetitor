@@ -36,6 +36,7 @@ export default function BoardPage() {
     window.addEventListener('resize', resizeCanvas);
 
     // Инициализируем WebSocket
+    console.log('Инициализируем Socket.io...');
     const socket = io('/', {
       path: '/api/socket',
       reconnection: true,
@@ -44,25 +45,38 @@ export default function BoardPage() {
       reconnectionAttempts: 5
     });
 
+    console.log('Socket объект создан:', socket);
+
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Подключились к серверу');
+      console.log('✓ Подключились к серверу');
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('✗ Ошибка подключения Socket.io:', error);
+    });
+
+    socket.on('error', (error) => {
+      console.error('✗ Socket.io ошибка:', error);
     });
 
     // Получаем количество активных пользователей
     socket.on('users-count', (count: number) => {
+      console.log('Получили users-count:', count);
       setUsers(count);
     });
 
     // Получаем событие закрытия сессии
     socket.on('session-ended', () => {
+      console.log('✗ Сессия закрыта');
       setSessionEnded(true);
       socketRef.current?.disconnect();
     });
 
     // Загружаем сохранённое состояние доски
     socket.on('load-board', (drawing) => {
+      console.log('Загрузили доску:', drawing?.length || 0);
       if (drawing && drawing.length > 0) {
         drawing.forEach((stroke: any) => {
           redrawStroke(ctx, stroke);
@@ -77,6 +91,7 @@ export default function BoardPage() {
 
     // Получаем событие очистки доски
     socket.on('clear-board', () => {
+      console.log('Доска очищена');
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     });
@@ -176,7 +191,7 @@ export default function BoardPage() {
         <>
           <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
             <div>
-              <h1 className="text-xl font-semibold">Whiteboard -5</h1>
+              <h1 className="text-xl font-semibold">Whiteboard -6</h1>
               <p className="text-xs text-slate-600">
                 {users} {users === 1 ? 'пользователь' : users <= 4 ? 'пользователей' : 'пользователей'} / 4 онлайн
               </p>
