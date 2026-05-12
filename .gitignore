@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+dist/
+build/
+*.log
+.DS_Store
+.env.local
+.env.*.local
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
