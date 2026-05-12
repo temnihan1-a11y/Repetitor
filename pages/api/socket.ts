@@ -82,7 +82,7 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
       const currentDrawing = boardSessions.get(defaultSessionId);
       socket.emit('load-board', currentDrawing);
 
-      // Отправляем количество активных пользователей
+      // Отправляем количество активных пользователей ВСЕм (включая нового)
       newIO.emit('users-count', activeUsers.size);
 
       // Слушаем события рисования
@@ -103,6 +103,7 @@ const handler = (req: NextApiRequest, res: NextApiResponse) => {
       socket.on('disconnect', () => {
         console.log(`Пользователь отключился: ${socket.id}`);
         activeUsers.delete(socket.id);
+        // Отправляем обновленное количество всем
         newIO.emit('users-count', activeUsers.size);
       });
     });
