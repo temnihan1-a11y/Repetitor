@@ -8,7 +8,7 @@ export default function BoardPage() {
   const socketRef = useRef<Socket | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
-  const [users, setUsers] = useState(0);
+  const [users, setUsers] = useState(1);
   const [sessionEnded, setSessionEnded] = useState(false);
 
   useEffect(() => {
@@ -176,7 +176,7 @@ export default function BoardPage() {
         <>
           <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
             <div>
-              <h1 className="text-xl font-semibold">Whiteboard -3</h1>
+              <h1 className="text-xl font-semibold">Whiteboard -4</h1>
               <p className="text-xs text-slate-600">
                 {users} {users === 1 ? 'пользователь' : users <= 4 ? 'пользователей' : 'пользователей'} / 4 онлайн
               </p>
