@@ -1,17 +1,19 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
 
 export default function BoardPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const userIdRef = useRef<string>('');
   const [isDrawing, setIsDrawing] = useState(false);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
   const [users, setUsers] = useState(1);
   const [sessionEnded, setSessionEnded] = useState(false);
 
   useEffect(() => {
+    // Генерируем уникальный ID для пользователя
+    userIdRef.current = Math.random().toString(36).substring(7);
+
     // Инициализируем canvas
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -35,93 +37,65 @@ export default function BoardPage() {
 
     window.addEventListener('resize', resizeCanvas);
 
-    // Инициализируем WebSocket
-    console.log('Инициализируем Socket.io...');
-    const socket = io('/', {
-      path: '/api/socket',
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
-    });
-
-    console.log('Socket объект создан:', socket);
-
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      console.log('✓ Подключились к серверу');
-    });
-
-    socket.on('connect_error', (error) => {
-      console.error('✗ Ошибка подключения Socket.io:', error);
-    });
-
-    socket.on('error', (error) => {
-      console.error('✗ Socket.io ошибка:', error);
-    });
-
-    // Получаем количество активных пользователей
-    socket.on('users-count', (count: number) => {
-      console.log('Получили users-count:', count);
-      setUsers(count);
-    });
-
-    // Получаем событие закрытия сессии
-    socket.on('session-ended', () => {
-      console.log('✗ Сессия закрыта');
-      setSessionEnded(true);
-      socketRef.current?.disconnect();
-    });
-
-    // Загружаем сохранённое состояние доски
-    socket.on('load-board', (drawing) => {
-      console.log('Загрузили доску:', drawing?.length || 0);
-      if (drawing && drawing.length > 0) {
-        drawing.forEach((stroke: any) => {
-          redrawStroke(ctx, stroke);
+    // Присоединяемся к серверу
+    const joinSession = async () => {
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'join', userId: userIdRef.current })
         });
+        const data = await res.json();
+        console.log('Присоединились:', data);
+        setUsers(data.count || 1);
+
+        if (data.kicked) {
+          console.log('Вас выкидали, но вы заново вошли');
+        }
+      } catch (error) {
+        console.error('Ошибка присоединения:', error);
       }
-    });
+    };
 
-    // Получаем рисование от других пользователей
-    socket.on('draw', (data) => {
-      redrawStroke(ctx, data);
-    });
+    joinSession();
 
-    // Получаем событие очистки доски
-    socket.on('clear-board', () => {
-      console.log('Доска очищена');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    });
+    // Периодически пингим сервер
+    const pingInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'ping', userId: userIdRef.current })
+        });
+        const data = await res.json();
+        setUsers(data.count || 1);
+      } catch (error) {
+        console.error('Ошибка пинга:', error);
+      }
+    }, 5000); // каждые 5 секунд
 
-    socket.on('disconnect', () => {
-      console.log('Отключились от сервера');
-    });
+    // При выходе со страницы
+    const handleBeforeUnload = async () => {
+      try {
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'leave', userId: userIdRef.current })
+        });
+      } catch (error) {
+        console.error('Ошибка выхода:', error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      socket.disconnect();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      clearInterval(pingInterval);
+      handleBeforeUnload();
     };
   }, []);
-
-  const redrawStroke = (ctx: CanvasRenderingContext2D, stroke: any) => {
-    ctx.strokeStyle = stroke.color || '#111827';
-    ctx.lineWidth = stroke.width || 4;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    if (stroke.type === 'begin') {
-      ctx.beginPath();
-      ctx.moveTo(stroke.x, stroke.y);
-    } else if (stroke.type === 'draw') {
-      ctx.lineTo(stroke.x, stroke.y);
-      ctx.stroke();
-    } else if (stroke.type === 'end') {
-      ctx.closePath();
-    }
-  };
 
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     if (!context || !canvasRef.current) return;
@@ -134,8 +108,6 @@ export default function BoardPage() {
 
     context.beginPath();
     context.moveTo(x, y);
-
-    socketRef.current?.emit('draw', { type: 'begin', x, y });
   };
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -148,22 +120,18 @@ export default function BoardPage() {
 
     context.lineTo(x, y);
     context.stroke();
-
-    socketRef.current?.emit('draw', { type: 'draw', x, y });
   };
 
   const stopDrawing = () => {
     if (!context) return;
     setIsDrawing(false);
     context.closePath();
-    socketRef.current?.emit('draw', { type: 'end' });
   };
 
   const clearCanvas = () => {
     if (!context || !canvasRef.current) return;
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    socketRef.current?.emit('clear-board');
   };
 
   return (
@@ -191,7 +159,7 @@ export default function BoardPage() {
         <>
           <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
             <div>
-              <h1 className="text-xl font-semibold">Whiteboard -6</h1>
+              <h1 className="text-xl font-semibold">Whiteboard -7</h1>
               <p className="text-xs text-slate-600">
                 {users} {users === 1 ? 'пользователь' : users <= 4 ? 'пользователей' : 'пользователей'} / 4 онлайн
               </p>
