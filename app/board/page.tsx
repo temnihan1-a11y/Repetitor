@@ -140,7 +140,7 @@ export default function BoardPage() {
     <main className="flex min-h-screen flex-col bg-slate-100">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
         <div>
-          <h1 className="text-xl font-semibold">Whiteboard</h1>
+          <h1 className="text-xl font-semibold">Whiteboard -1</h1>
           <p className="text-xs text-slate-600">
             {users} {users === 1 ? 'пользователь' : 'пользователей'} онлайн
           </p>
