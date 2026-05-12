@@ -9,6 +9,7 @@ export default function BoardPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
   const [users, setUsers] = useState(1);
+  const [sessionEnded, setSessionEnded] = useState(false);
 
   useEffect(() => {
     // Инициализируем canvas
@@ -47,7 +48,17 @@ export default function BoardPage() {
 
     socket.on('connect', () => {
       console.log('Подключились к серверу');
-      setUsers((prev) => prev + 1);
+    });
+
+    // Получаем количество активных пользователей
+    socket.on('users-count', (count: number) => {
+      setUsers(count);
+    });
+
+    // Получаем событие закрытия сессии
+    socket.on('session-ended', () => {
+      setSessionEnded(true);
+      socketRef.current?.disconnect();
     });
 
     // Загружаем сохранённое состояние доски
@@ -71,7 +82,7 @@ export default function BoardPage() {
     });
 
     socket.on('disconnect', () => {
-      setUsers((prev) => Math.max(1, prev - 1));
+      console.log('Отключились от сервера');
     });
 
     return () => {
@@ -142,33 +153,56 @@ export default function BoardPage() {
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-100">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
-        <div>
-          <h1 className="text-xl font-semibold">Whiteboard -1</h1>
-          <p className="text-xs text-slate-600">
-            {users} {users === 1 ? 'пользователь' : 'пользователей'} онлайн
-          </p>
+      {sessionEnded ? (
+        <div className="flex items-center justify-center min-h-screen bg-slate-100">
+          <div className="max-w-md rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-xl shadow-slate-200/50">
+            <div className="text-5xl mb-4">⏱️</div>
+            <h1 className="text-3xl font-semibold text-slate-900">Сессия закончилась</h1>
+            <p className="mt-4 text-slate-600">
+              Ваше время в бесплатной доске истекло. На этой доске могут одновременно работать только 4 человека.
+            </p>
+            <p className="mt-4 text-sm text-slate-500">
+              Приходите в другой раз или переходите на платный сервис для неограниченного доступа.
+            </p>
+            <button
+              onClick={() => window.location.href = '/'}
+              className="mt-6 rounded-xl bg-slate-900 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              На главную
+            </button>
+          </div>
         </div>
-        <button
-          onClick={clearCanvas}
-          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
-        >
-          Clear
-        </button>
-      </header>
+      ) : (
+        <>
+          <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
+            <div>
+              <h1 className="text-xl font-semibold">Whiteboard</h1>
+              <p className="text-xs text-slate-600">
+                {users} {users === 1 ? 'пользователь' : users <= 4 ? 'пользователей' : 'пользователей'} / 4 онлайн
+              </p>
+            </div>
+            <button
+              onClick={clearCanvas}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700"
+            >
+              Clear
+            </button>
+          </header>
 
-      <canvas
-        ref={canvasRef}
-        onMouseDown={startDrawing}
-        onMouseMove={draw}
-        onMouseUp={stopDrawing}
-        onMouseLeave={stopDrawing}
-        onTouchStart={startDrawing}
-        onTouchMove={draw}
-        onTouchEnd={stopDrawing}
-        className="flex-1 cursor-crosshair bg-white touch-none"
-        style={{ touchAction: 'none' }}
-      />
+          <canvas
+            ref={canvasRef}
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            onTouchStart={startDrawing}
+            onTouchMove={draw}
+            onTouchEnd={stopDrawing}
+            className="flex-1 cursor-crosshair bg-white touch-none"
+            style={{ touchAction: 'none' }}
+          />
+        </>
+      )}
     </main>
   );
 }
