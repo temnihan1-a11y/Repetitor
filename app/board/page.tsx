@@ -176,7 +176,7 @@ export default function BoardPage() {
         <>
           <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3 shadow-sm">
             <div>
-              <h1 className="text-xl font-semibold">Whiteboard</h1>
+              <h1 className="text-xl font-semibold">Whiteboard -2</h1>
               <p className="text-xs text-slate-600">
                 {users} {users === 1 ? 'пользователь' : users <= 4 ? 'пользователей' : 'пользователей'} / 4 онлайн
               </p>
